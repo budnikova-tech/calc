@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Декомпозиция прибыли на маркетплейсах</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { opacity: 1; }
+    </style>
+</head>
+<body class="bg-white p-4 md:p-8 font-sans text-gray-800">
+
+<div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.05)] overflow-hidden border border-gray-100">
+    <!-- Шапка -->
+    <div class="p-6 text-center border-b border-gray-100 relative">
+        <h1 class="text-2xl md:text-3xl font-bold text-orange-600 uppercase tracking-tight">Декомпозиция прибыли на маркетплейсах</h1>
+    </div>
+
+    <!-- Переключатель режима -->
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-4 p-4 bg-gray-50 border-b border-gray-100">
+        <span class="text-sm font-semibold text-gray-600">Формат ввода расходов:</span>
+        <div class="inline-flex rounded-lg border border-orange-500 p-1 bg-white">
+            <button onclick="setMode('rub')" id="btn_mode_rub" class="px-5 py-1.5 text-sm rounded-md bg-orange-500 text-white font-medium transition-colors">в рублях</button>
+            <button onclick="setMode('pct')" id="btn_mode_pct" class="px-5 py-1.5 text-sm rounded-md text-orange-500 font-medium transition-colors hover:bg-orange-50">в % от выручки</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-0">
+        <!-- Левая колонка: Ввод данных -->
+        <div class="p-6 md:p-8 border-r border-gray-100">
+            <h2 class="text-xs font-bold text-orange-500 uppercase mb-6 tracking-widest">Вводные данные за месяц</h2>
+            
+            <div class="space-y-4" id="inputs">
+                <!-- Базовые метрики -->
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Цена реализации, ₽/шт</label>
+                    <input type="number" id="price" value="2500" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right font-medium focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Объем продаж, шт</label>
+                    <input type="number" id="quantity" value="1500" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right font-medium focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                </div>
+                
+                <div class="h-px bg-gray-100 my-4"></div>
+                
+                <!-- Переменные расходы -->
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Закупочная стоимость<span class="unit-label" data-unit=", ₽">, ₽</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="cost_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="cost" value="600" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Базовая комиссия площадки, %</label>
+                    <div class="flex items-center gap-3">
+                        <span id="commission_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="commission" value="15" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Затраты на логистику<span class="unit-label" data-unit=", ₽">, ₽</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="logistics_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="logistics" value="100" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600 leading-tight">Дополнительные расходы на единицу<span class="unit-label" data-unit=", ₽">, ₽</span> <span class="text-[10px] block text-gray-400 mt-0.5">(упаковка, маркировка и т.д.)</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="otherVar_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="otherVar" value="50" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+
+                <div class="h-px bg-gray-100 my-4"></div>
+
+                <!-- Постоянные расходы -->
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Бюджет на продвижение<span class="unit-label" data-unit=", ₽/мес">, ₽/мес</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="ads_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="ads" value="100000" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Расходы на команду (фот)<span class="unit-label" data-unit=", ₽/мес">, ₽/мес</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="salaries_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="salaries" value="150000" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Инфраструктура (аренда, crm, сервисы)<span class="unit-label" data-unit=", ₽/мес">, ₽/мес</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="rent_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="rent" value="50000" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Иные фиксированные траты<span class="unit-label" data-unit=", ₽/мес">, ₽/мес</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="otherFix_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="otherFix" value="20000" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+
+                <div class="h-px bg-gray-100 my-4"></div>
+
+                <!-- Налоги и цель -->
+                <div class="flex justify-between items-center gap-2">
+                    <label class="text-sm text-gray-600">Налогообложение и кредиты<span class="unit-label" data-unit=", ₽/мес">, ₽/мес</span></label>
+                    <div class="flex items-center gap-3">
+                        <span id="taxes_hint" class="text-xs text-gray-400 font-medium w-14 text-right"></span>
+                        <input type="number" id="taxes" value="60000" class="w-28 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-right focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all shadow-sm">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center gap-2 mt-4 bg-orange-50 p-3 rounded-lg border border-orange-100">
+                    <label class="text-sm text-orange-800 font-semibold">Желаемая чистая прибыль, ₽</label>
+                    <input type="number" id="targetProfit" value="200000" class="w-28 bg-white border border-orange-200 rounded-lg px-3 py-1.5 text-right font-bold text-orange-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none transition-all">
+                </div>
+            </div>
+        </div>
+
+        <!-- Правая колонка: Результаты -->
+        <div class="p-6 md:p-8 bg-gray-50/50">
+            <h2 class="text-xs font-bold text-orange-500 uppercase mb-6 tracking-widest">Финансовый результат</h2>
+            
+            <div class="grid grid-cols-3 gap-3 mb-8 text-center">
+                <div class="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
+                    <div class="text-[10px] text-gray-500 mb-1 leading-tight uppercase font-semibold">Прибыль с одной штуки</div>
+                    <div id="res_margin_unit" class="text-sm font-bold text-green-600">-</div>
+                </div>
+                <div class="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
+                    <div class="text-[10px] text-gray-500 mb-1 leading-tight uppercase font-semibold">Операционная прибыль (ebitda)</div>
+                    <div id="res_ebitda_top" class="text-sm font-bold text-red-600">-</div>
+                </div>
+                <div class="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
+                    <div class="text-[10px] text-gray-500 mb-1 leading-tight uppercase font-semibold text-nowrap">Итоговая чистая прибыль</div>
+                    <div id="res_net_profit_top" class="text-sm font-bold text-red-600">-</div>
+                </div>
+                
+                <!-- Новые окошки рентабельности -->
+                <div class="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
+                    <div class="text-[10px] text-gray-500 mb-1 leading-tight uppercase font-semibold">Рентабельность по марже</div>
+                    <div id="res_margin_pct" class="text-sm font-bold">-</div>
+                </div>
+                <div class="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
+                    <div class="text-[10px] text-gray-500 mb-1 leading-tight uppercase font-semibold">Рентабельность ebitda</div>
+                    <div id="res_ebitda_pct" class="text-sm font-bold">-</div>
+                </div>
+                <div class="bg-white border border-gray-200 p-3.5 rounded-xl shadow-sm">
+                    <div class="text-[10px] text-gray-500 mb-1 leading-tight uppercase font-semibold text-nowrap">Рент. по чистой прибыли</div>
+                    <div id="res_net_pct" class="text-sm font-bold">-</div>
+                </div>
+            </div>
+
+            <div class="space-y-3.5 px-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Общий оборот (выручка)</span>
+                    <span id="res_revenue" class="font-bold text-gray-800">1,5 M ₽</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Сумма переменных затрат</span>
+                    <span id="res_var_total" class="font-bold text-gray-800">1,1 M ₽</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-800 font-semibold">Валовая (маржинальная) прибыль</span>
+                    <span id="res_margin_total" class="font-bold text-gray-800">375 000 ₽</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Сумма постоянных затрат</span>
+                    <span id="res_fix_total" class="font-bold text-gray-800">430 000 ₽</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-800 font-semibold">Операционная прибыль (ebitda)</span>
+                    <span id="res_ebitda" class="font-bold text-gray-800">-55 000 ₽</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Налоги, проценты и списания</span>
+                    <span id="res_taxes" class="font-bold text-gray-800">50 000 ₽</span>
+                </div>
+                <hr class="border-gray-200 my-4">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-800 font-bold text-base">Чистая прибыль на руки</span>
+                    <span id="res_net_profit" class="font-bold text-base text-red-600">-105 000 ₽</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Рентабельность бизнеса (net margin)</span>
+                    <span id="res_roi" class="font-bold text-red-600">-7,0 %</span>
+                </div>
+            </div>
+
+            <div id="status_box" class="mt-8 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-800 leading-relaxed shadow-sm">
+                проект генерирует убыток: ежемесячные потери около <span id="status_loss" class="font-bold">105 000</span> ₽. стоит пересмотреть ценообразование или оптимизировать логистику и комиссии.
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок "Что если" -->
+    <div class="p-6 md:p-8 bg-white border-t border-gray-100">
+        <h2 class="text-xs font-bold text-orange-500 uppercase mb-6 tracking-widest text-center md:text-left">Моделирование ситуаций</h2>
+        
+        <div class="flex flex-wrap gap-3 mb-8 justify-center md:justify-start">
+            <button onclick="applyScenario('price', this)" class="scenario-btn px-5 py-2 rounded-lg border border-orange-500 text-orange-500 text-sm font-semibold hover:bg-orange-50 transition-colors shadow-sm">
+                рост чека на 10%
+            </button>
+            <button onclick="applyScenario('comm', this)" class="scenario-btn px-5 py-2 rounded-lg border border-orange-500 text-orange-500 text-sm font-semibold hover:bg-orange-50 transition-colors shadow-sm">
+                снижение комиссии на 2%
+            </button>
+            <button onclick="applyScenario('qty', this)" class="scenario-btn px-5 py-2 rounded-lg border border-orange-500 text-orange-500 text-sm font-semibold hover:bg-orange-50 transition-colors shadow-sm">
+                рост объема на 20%
+            </button>
+            <button onclick="applyScenario('ads', this)" class="scenario-btn px-5 py-2 rounded-lg border border-orange-500 text-orange-500 text-sm font-semibold hover:bg-orange-50 transition-colors shadow-sm">
+                уменьшение бюджета на 20%
+            </button>
+            <button onclick="applyScenario('reset', this)" class="px-5 py-2 rounded-lg border border-gray-300 text-gray-600 bg-gray-50 text-sm font-semibold hover:bg-gray-100 transition-colors shadow-sm">
+                вернуть как было
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center p-4 border border-gray-100 rounded-xl bg-gray-50/50">
+                <div class="text-[10px] text-gray-400 mb-1 uppercase font-bold tracking-wider">ebitda по сценарию</div>
+                <div id="scen_ebitda" class="text-xl font-bold text-gray-800">-</div>
+            </div>
+            <div class="text-center p-4 border border-gray-100 rounded-xl bg-gray-50/50">
+                <div class="text-[10px] text-gray-400 mb-1 uppercase font-bold tracking-wider">чистая прибыль по сценарию</div>
+                <div id="scen_net" class="text-xl font-bold text-gray-800">-</div>
+            </div>
+            <div class="text-center p-4 border border-orange-100 rounded-xl bg-orange-50">
+                <div class="text-[10px] text-orange-500 mb-1 uppercase font-bold tracking-wider">разница в прибыли</div>
+                <div id="scen_diff" class="text-xl font-bold text-orange-600">-</div>
+            </div>
+        </div>
+
+        <div class="mt-6 text-sm text-gray-500 text-center md:text-left" id="scen_text">
+            активируйте один из вариантов для оценки влияния на итоговые цифры.
+        </div>
+    </div>
+</div>
+
+<div class="text-center text-xs text-gray-400 mt-6 mb-8 tracking-wide">
+    калькулятор разработан даниловой ольгой +7-962-617-50-80
+</div>
+
+<script>
+    let currentMode = 'rub'; 
+    const inputsList = ['price', 'quantity', 'cost', 'commission', 'logistics', 'otherVar', 'ads', 'salaries', 'rent', 'otherFix', 'taxes'];
+    
+    // Поля, которые меняют логику ввода в зависимости от режима
+    const toggleFields = [
+        {id: 'cost', isUnit: true},
+        {id: 'logistics', isUnit: true},
+        {id: 'otherVar', isUnit: true},
+        {id: 'ads', isUnit: false},
+        {id: 'salaries', isUnit: false},
+        {id: 'rent', isUnit: false},
+        {id: 'otherFix', isUnit: false},
+        {id: 'taxes', isUnit: false}
+    ];
+
+    function formatNum(n, suffix = ' ₽', forceSign = false) {
+        let absN = Math.abs(n);
+        let sign = n < 0 ? '-' : (forceSign && n > 0 ? '+' : '');
+        
+        if (absN >= 1000000 && suffix === ' ₽') {
+            return sign + (absN / 1000000).toLocaleString('ru-RU', {maximumFractionDigits: 1}) + ' M' + suffix;
+        }
+        return sign + Math.round(absN).toLocaleString('ru-RU') + suffix;
+    }
+
+    function setMode(newMode) {
+        if (newMode === currentMode) return;
+
+        let price = parseFloat(document.getElementById('price').value) || 0;
+        let qty = parseFloat(document.getElementById('quantity').value) || 0;
+        let revenue = price * qty;
+
+        // Конвертируем текущие значения в инпутах
+        toggleFields.forEach(field => {
+            let el = document.getElementById(field.id);
+            let val = parseFloat(el.value) || 0;
+            let base = field.isUnit ? price : revenue;
+
+            if (base > 0) {
+                if (newMode === 'pct') {
+                    el.value = ((val / base) * 100).toFixed(1);
+                } else {
+                    el.value = ((val / 100) * base).toFixed(0);
+                }
+            }
+        });
+
+        currentMode = newMode;
+
+        // Обновляем UI кнопок
+        document.getElementById('btn_mode_rub').className = currentMode === 'rub' 
+            ? "px-5 py-1.5 text-sm rounded-md bg-orange-500 text-white font-medium transition-colors shadow-sm"
+            : "px-5 py-1.5 text-sm rounded-md text-orange-500 font-medium transition-colors hover:bg-orange-50";
+        
+        document.getElementById('btn_mode_pct').className = currentMode === 'pct'
+            ? "px-5 py-1.5 text-sm rounded-md bg-orange-500 text-white font-medium transition-colors shadow-sm"
+            : "px-5 py-1.5 text-sm rounded-md text-orange-500 font-medium transition-colors hover:bg-orange-50";
+
+        // Обновляем подписи единиц измерения в лейблах
+        document.querySelectorAll('.unit-label').forEach(el => {
+            el.innerText = currentMode === 'pct' ? ', %' : el.dataset.unit;
+        });
+
+        calculate();
+        applyScenario('reset'); 
+    }
+
+    // Универсальная функция расчета экономики 
+    function calcEconomics(overrides = {}) {
+        let price = (parseFloat(document.getElementById('price').value) || 0) * (overrides.priceMult || 1);
+        let qty = (parseFloat(document.getElementById('quantity').value) || 0) * (overrides.qtyMult || 1);
+        let revenue = price * qty;
+
+        const getExp = (id, isUnit) => {
+            let val = parseFloat(document.getElementById(id).value) || 0;
+            if (id === 'ads' && overrides.adsMult) val *= overrides.adsMult;
+
+            if (currentMode === 'pct') {
+                return isUnit ? price * (val / 100) : revenue * (val / 100);
+            } else {
+                return val;
+            }
+        };
+
+        // Задаем имена переменных в точности как id элементов (важно для фикса NaN%)
+        let cost = getExp('cost', true);
+        let logistics = getExp('logistics', true);
+        let otherVar = getExp('otherVar', true);
+        
+        let ads = getExp('ads', false);
+        let salaries = getExp('salaries', false);
+        let rent = getExp('rent', false);
+        let otherFix = getExp('otherFix', false);
+        let taxes = getExp('taxes', false);
+
+        let commPct = (parseFloat(document.getElementById('commission').value) || 0) + (overrides.commDelta || 0);
+        let commAbs = price * (commPct / 100);
+
+        let varPerUnit = cost + commAbs + logistics + otherVar;
+        let varTotal = varPerUnit * qty;
+        let marginTotal = revenue - varTotal;
+        let fixTotal = ads + salaries + rent + otherFix;
+        let ebitda = marginTotal - fixTotal;
+        let netProfit = ebitda - taxes;
+        let marginUnit = price - varPerUnit;
+        let roi = revenue !== 0 ? (netProfit / revenue) * 100 : 0;
+
+        return { price, qty, revenue, cost, logistics, otherVar, ads, salaries, rent, otherFix, taxes, commPct, commAbs, varPerUnit, varTotal, marginTotal, fixTotal, ebitda, netProfit, marginUnit, roi };
+    }
+
+    function calculate() {
+        let base = calcEconomics();
+
+        // Обновление подсказок рядом с инпутами
+        const updateHint = (id, isUnit, absVal) => {
+            let el = document.getElementById(id + '_hint');
+            if (!el) return;
+            if (currentMode === 'rub') {
+                let pct = isUnit ? (base.price ? (absVal / base.price) * 100 : 0) : (base.revenue ? (absVal / base.revenue) * 100 : 0);
+                el.innerText = pct.toFixed(1) + '%';
+            } else {
+                el.innerText = formatNum(absVal, isUnit ? ' ₽/шт' : ' ₽');
+            }
+        };
+
+        // Теперь id совпадают с ключами в объекте base, ошибки NaN% не будет
+        toggleFields.forEach(f => updateHint(f.id, f.isUnit, base[f.id]));
+        
+        // Комиссия всегда в %, поэтому подсказка в рублях
+        document.getElementById('commission_hint').innerText = formatNum(base.commAbs, ' ₽/шт');
+
+        // Обновление UI результатов
+        document.getElementById('res_margin_unit').textContent = formatNum(base.marginUnit, ' ₽/заказ', true);
+        document.getElementById('res_ebitda_top').textContent = formatNum(base.ebitda);
+        document.getElementById('res_net_profit_top').textContent = formatNum(base.netProfit);
+        
+        let marginPct = base.revenue ? (base.marginTotal / base.revenue) * 100 : 0;
+        let ebitdaPct = base.revenue ? (base.ebitda / base.revenue) * 100 : 0;
+        let netPct = base.revenue ? (base.netProfit / base.revenue) * 100 : 0;
+
+        document.getElementById('res_margin_pct').textContent = marginPct.toFixed(1).replace('.', ',') + ' %';
+        document.getElementById('res_ebitda_pct').textContent = ebitdaPct.toFixed(1).replace('.', ',') + ' %';
+        document.getElementById('res_net_pct').textContent = netPct.toFixed(1).replace('.', ',') + ' %';
+
+        document.getElementById('res_margin_pct').className = `text-sm font-bold ${marginPct < 0 ? 'text-red-600' : 'text-green-600'}`;
+        document.getElementById('res_ebitda_pct').className = `text-sm font-bold ${ebitdaPct < 0 ? 'text-red-600' : 'text-green-600'}`;
+        document.getElementById('res_net_pct').className = `text-sm font-bold ${netPct < 0 ? 'text-red-600' : 'text-green-600'}`;
+        
+        document.getElementById('res_revenue').textContent = formatNum(base.revenue);
+        document.getElementById('res_var_total').textContent = formatNum(base.varTotal);
+        document.getElementById('res_margin_total').textContent = formatNum(base.marginTotal);
+        document.getElementById('res_fix_total').textContent = formatNum(base.fixTotal);
+        document.getElementById('res_ebitda').textContent = formatNum(base.ebitda);
+        document.getElementById('res_taxes').textContent = formatNum(base.taxes);
+        document.getElementById('res_net_profit').textContent = formatNum(base.netProfit);
+        document.getElementById('res_roi').textContent = base.roi.toFixed(1).replace('.', ',') + ' %';
+        
+        // Оформление цветов и статуса
+        const netEl = document.getElementById('res_net_profit');
+        const netTopEl = document.getElementById('res_net_profit_top');
+        const ebitdaTopEl = document.getElementById('res_ebitda_top');
+        const roiEl = document.getElementById('res_roi');
+        const statusBox = document.getElementById('status_box');
+        
+        const isNegative = base.netProfit < 0;
+        const colorClass = isNegative ? 'text-red-600' : 'text-green-600';
+        
+        netEl.className = `font-bold text-base ${colorClass}`;
+        netTopEl.className = `text-sm font-bold ${colorClass}`;
+        ebitdaTopEl.className = `text-sm font-bold ${base.ebitda < 0 ? 'text-red-600' : 'text-green-600'}`;
+        roiEl.className = `font-bold ${colorClass}`;
+
+        if (isNegative) {
+            statusBox.className = "mt-8 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 leading-relaxed shadow-sm";
+            statusBox.innerHTML = `проект генерирует убыток: ежемесячные потери около <span class="font-bold">${formatNum(Math.abs(base.netProfit), '')}</span> ₽. стоит пересмотреть ценообразование или оптимизировать логистику и комиссии.`;
+        } else {
+            statusBox.className = "mt-8 p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 leading-relaxed shadow-sm";
+            statusBox.innerHTML = `проект рентабелен: ваша расчетная прибыль составляет <span class="font-bold">${formatNum(base.netProfit)}</span> в месяц. можно рассматривать варианты масштабирования.`;
+        }
+    }
+
+    function applyScenario(type, btn = null) {
+        document.querySelectorAll('.scenario-btn').forEach(b => {
+            b.classList.remove('bg-orange-500', 'text-white');
+            b.classList.add('bg-white', 'text-orange-500');
+        });
+        
+        if (btn && type !== 'reset') {
+            btn.classList.remove('bg-white', 'text-orange-500');
+            btn.classList.add('bg-orange-500', 'text-white');
+        }
+
+        if (type === 'reset') {
+            document.getElementById('scen_ebitda').textContent = '-';
+            document.getElementById('scen_net').textContent = '-';
+            document.getElementById('scen_diff').textContent = '-';
+            document.getElementById('scen_text').textContent = 'активируйте один из вариантов для оценки влияния на итоговые цифры.';
+            return;
+        }
+
+        let overrides = {};
+        let scenarioName = '';
+
+        if (type === 'price') { overrides.priceMult = 1.1; scenarioName = '«рост чека на 10%»'; }
+        else if (type === 'comm') { overrides.commDelta = -2; scenarioName = '«снижение комиссии на 2%»'; }
+        else if (type === 'qty') { overrides.qtyMult = 1.2; scenarioName = '«рост объема на 20%»'; }
+        else if (type === 'ads') { overrides.adsMult = 0.8; scenarioName = '«уменьшение бюджета на 20%»'; }
+
+        let base = calcEconomics();
+        let scen = calcEconomics(overrides);
+        let diff = scen.netProfit - base.netProfit;
+
+        document.getElementById('scen_ebitda').textContent = formatNum(scen.ebitda);
+        document.getElementById('scen_net').textContent = formatNum(scen.netProfit);
+        document.getElementById('scen_diff').textContent = formatNum(diff, ' ₽', true);
+        document.getElementById('scen_diff').className = `text-xl font-bold ${diff >= 0 ? 'text-green-600' : 'text-red-600'}`;
+
+        document.getElementById('scen_text').innerHTML = `при применении сценария ${scenarioName}: итоговая прибыль изменится на <span class="font-bold">${formatNum(diff, ' ₽', true)}</span>. это показывает, какие рычаги наиболее эффективны для бизнеса.`;
+    }
+
+    // Слушатели событий
+    inputsList.forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+            calculate();
+            applyScenario('reset');
+        });
+    });
+
+    // Первый запуск
+    calculate();
+</script>
+
+</body>
+</html>
